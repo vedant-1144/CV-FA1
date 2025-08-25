@@ -53,7 +53,3 @@ streamlit run advanced_app_improved.py
 4. Configure any parameters for the selected operation
 5. Click the "Process Image" button to apply the operation
 6. View the results displayed side-by-side with the original image
-
-## License
-
-[MIT License](LICENSE)
