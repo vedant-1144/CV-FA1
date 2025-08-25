@@ -176,8 +176,6 @@ def apply_thresholding(image, threshold_type, threshold_value=127):
     
     if threshold_type == "Binary":
         _, thresholded = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
-    elif threshold_type == "Otsu":
-        _, thresholded = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     elif threshold_type == "Adaptive":
         thresholded = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                            cv2.THRESH_BINARY, 11, 2)
@@ -196,21 +194,15 @@ def detect_corners(image, corner_detector):
     gray = np.float32(gray)
     
     if corner_detector == "Harris":
-        # Detect corners
         corners = cv2.cornerHarris(gray, blockSize=2, ksize=3, k=0.04)
-        # Dilate to mark corners
         corners = cv2.dilate(corners, None)
         
-        # Create RGB image for visualization
         if len(image.shape) > 2:
             result = image.copy()
         else:
             result = cv2.cvtColor(gray.astype(np.uint8), cv2.COLOR_GRAY2BGR)
             
-        # Mark corners in red
         result[corners > 0.01 * corners.max()] = [0, 0, 255]
-        
-        # Count corners
         corner_count = np.sum(corners > 0.01 * corners.max())
         
         return result, corner_count
@@ -223,13 +215,11 @@ def detect_corners(image, corner_detector):
             
         corners = cv2.goodFeaturesToTrack(gray, maxCorners=100, qualityLevel=0.01, minDistance=10)
         
-        # Create RGB image for visualization
         if len(image.shape) > 2:
             result = image.copy()
         else:
             result = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
             
-        # Draw corners
         if corners is not None:
             for corner in corners:
                 x, y = corner.ravel()
@@ -250,16 +240,9 @@ def extract_features(image, feature_extractor):
         gray = image
     
     if feature_extractor == "ORB":
-        # Initialize ORB detector
         orb = cv2.ORB_create(nfeatures=500)
-        
-        # Detect keypoints
         keypoints = orb.detect(gray, None)
-        
-        # Compute descriptors
         keypoints, descriptors = orb.compute(gray, keypoints)
-        
-        # Draw keypoints
         img_with_keypoints = cv2.drawKeypoints(image.copy() if len(image.shape) > 2 else cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR), 
                                               keypoints, None, color=(0, 255, 0), 
                                               flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -268,13 +251,8 @@ def extract_features(image, feature_extractor):
     
     elif feature_extractor == "SIFT":
         try:
-            # Initialize SIFT detector
             sift = cv2.SIFT_create()
-            
-            # Detect keypoints and compute descriptors
             keypoints, descriptors = sift.detectAndCompute(gray, None)
-            
-            # Draw keypoints
             img_with_keypoints = cv2.drawKeypoints(image.copy() if len(image.shape) > 2 else cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR), 
                                                 keypoints, None, color=(0, 255, 0),
                                                 flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
@@ -293,66 +271,18 @@ def segment_image(image, segmentation_type):
         gray = image
     
     if segmentation_type == "Contours":
-        # Apply threshold
         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        
-        # Find contours
         contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # Create result image
+    
         if len(image.shape) > 2:
             result = image.copy()
         else:
             result = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-        
-        # Draw contours
+    
         cv2.drawContours(result, contours, -1, (0, 255, 0), 2)
         
         return result, len(contours)
-    
-    elif segmentation_type == "Watershed":
-        # Blur the image
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
         
-        # Threshold the image
-        _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-        
-        # Noise removal with morphological operations
-        kernel = np.ones((3, 3), np.uint8)
-        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
-        
-        # Sure background area
-        sure_bg = cv2.dilate(opening, kernel, iterations=3)
-        
-        # Finding sure foreground area
-        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2, 5)
-        _, sure_fg = cv2.threshold(dist_transform, 0.7*dist_transform.max(), 255, 0)
-        sure_fg = sure_fg.astype(np.uint8)
-        
-        # Finding unknown region
-        unknown = cv2.subtract(sure_bg, sure_fg)
-        
-        # Marker labelling
-        _, markers = cv2.connectedComponents(sure_fg)
-        
-        # Add 1 to all labels so that background is not 0, but 1
-        markers = markers + 1
-        
-        # Mark the unknown region with 0
-        markers[unknown == 255] = 0
-        
-        # Create RGB image for visualization
-        if len(image.shape) > 2:
-            result = image.copy()
-        else:
-            result = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-        
-        # Apply watershed
-        markers = cv2.watershed(result, markers)
-        result[markers == -1] = [0, 0, 255]  # Mark watershed boundaries in red
-        
-        return result, len(np.unique(markers)) - 1  # -1 to exclude background
-    
     return image, 0
 
 def apply_pca(descriptors, n_components=10):
@@ -585,7 +515,7 @@ def main():
                 params["threshold2"] = st.slider("Threshold 2", 0, 255, 200)
                 
             elif selected_operation == "Binary Image":
-                params["threshold_type"] = st.selectbox("Select Thresholding Method", ["Binary", "Otsu", "Adaptive"])
+                params["threshold_type"] = st.selectbox("Select Thresholding Method", ["Binary", "Adaptive"])
                 if params["threshold_type"] == "Binary":
                     params["threshold_value"] = st.slider("Threshold Value", 0, 255, 127)
                 
@@ -596,9 +526,9 @@ def main():
                 params["feature_extractor"] = st.selectbox("Select Feature Extractor", ["ORB", "SIFT"])
                 
             elif selected_operation == "Segmentation":
-                params["segmentation_type"] = st.selectbox("Select Segmentation Method", ["Contours", "Watershed"])
+                params["segmentation_type"] = st.selectbox("Select Segmentation Method", ["Contours"])
                 
-            elif selected_operation == "PCA":
+            elif selected_operation == "PCA":¯
                 params["feature_extractor"] = st.selectbox("Select Feature Extractor for PCA", ["ORB", "SIFT"])
                 params["n_components"] = st.slider("Number of PCA Components", 2, 20, 10)
             
@@ -687,7 +617,7 @@ def main():
             <div style='background-color: #e3f2fd; padding: 15px; border-radius: 10px; border: 1px solid #1976d2;'>
                 <h3 style='color: #0d47a1; font-weight: bold;'>Advanced Operations</h3>
                 <ul style='color: #212121; font-weight: 500;'>
-                    <li>Contour and Watershed segmentation</li>
+                    <li>Contour Segmentation</li>
                     <li>PCA dimensionality reduction</li>
                 </ul>
             </div>
