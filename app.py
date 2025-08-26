@@ -15,7 +15,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better appearance and text visibility - UPDATED FOR DARK MODE SIDEBAR
 st.markdown("""
 <style>
     /* Main headers and content styling */
@@ -130,7 +129,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Define helper functions for image processing operations
+# Functions for Image Processing Operations
 def convert_to_grayscale(image):
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -152,7 +151,14 @@ def apply_filter(image, filter_type, params=None):
     elif filter_type == "Median":
         ksize = params.get("ksize", 5)
         return cv2.medianBlur(image, ksize)
-    elif filter_type == "Sobel":
+    return image
+
+def detect_edges(image, edge_detector, threshold1=100, threshold2=200):
+    if edge_detector == "Canny":
+        if len(image.shape) > 2:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return cv2.Canny(image, threshold1, threshold2)
+    elif edge_detector == "Sobel":
         if len(image.shape) > 2:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
@@ -161,13 +167,6 @@ def apply_filter(image, filter_type, params=None):
         sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
         sobel_combined = cv2.magnitude(sobelx, sobely)
         return cv2.convertScaleAbs(sobel_combined)
-    return image
-
-def detect_edges(image, edge_detector, threshold1=100, threshold2=200):
-    if edge_detector == "Canny":
-        if len(image.shape) > 2:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        return cv2.Canny(image, threshold1, threshold2)
     return image
 
 def apply_thresholding(image, threshold_type, threshold_value=127):
@@ -505,12 +504,12 @@ def main():
                 params["color_space"] = st.selectbox("Select Color Space", ["RGB", "Grayscale", "HSV", "Lab"])
                 
             elif selected_operation == "Filters":
-                params["filter_type"] = st.selectbox("Select Filter", ["Gaussian", "Median", "Sobel"])
+                params["filter_type"] = st.selectbox("Select Filter", ["Gaussian", "Median"])
                 if params["filter_type"] in ["Gaussian", "Median"]:
                     params["ksize"] = st.slider("Kernel Size", 1, 25, 5, step=2)  # Ensure odd kernel size
             
             elif selected_operation == "Edge Detection":
-                params["edge_detector"] = st.selectbox("Select Edge Detector", ["Canny"])
+                params["edge_detector"] = st.selectbox("Select Edge Detector", ["Canny", "Sobel"])
                 params["threshold1"] = st.slider("Threshold 1", 0, 255, 100)
                 params["threshold2"] = st.slider("Threshold 2", 0, 255, 200)
                 
@@ -528,7 +527,7 @@ def main():
             elif selected_operation == "Segmentation":
                 params["segmentation_type"] = st.selectbox("Select Segmentation Method", ["Contours"])
                 
-            elif selected_operation == "PCA":¯
+            elif selected_operation == "PCA":
                 params["feature_extractor"] = st.selectbox("Select Feature Extractor for PCA", ["ORB", "SIFT"])
                 params["n_components"] = st.slider("Number of PCA Components", 2, 20, 10)
             
@@ -603,7 +602,6 @@ def main():
                 <h3 style='color: #0d47a1; font-weight: bold;'>Binarization</h3>
                 <ul style='color: #212121; font-weight: 500;'>
                     <li>Binary thresholding</li>
-                    <li>Otsu's method</li>
                     <li>Adaptive thresholding</li>
                 </ul>
             </div>
